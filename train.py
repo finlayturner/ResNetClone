@@ -6,8 +6,12 @@ def train(model, train_loader, test_loader, epochs=10, device="cpu"):
 
     model.to(device)
 
-    optimiser = torch.optim.Adam(model.parameters(), lr=0.001)
+    # Adam with a small weight decay for L2 regularisation
+    optimiser = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss()
+
+    # decrease lr after a few epochs if validation loss plateaus
+    scheduler = torch.optim.lr_scheduler.StepLR(optimiser, step_size=5, gamma=0.1)
 
     # For use in graph plotting
     train_accuracies = []
@@ -66,6 +70,17 @@ def train(model, train_loader, test_loader, epochs=10, device="cpu"):
 
         accuracy = evaluate(model, test_loader, device)
         test_accuracies.append(accuracy)
+
+        # step scheduler once per epoch
+        scheduler.step()
+
+        # simple early stopping: if test accuracy converges, break out
+        if epoch > 2 and test_accuracies[-1] <= max(test_accuracies[:-1]):
+            # no improvement in this epoch
+            stagnation = sum(1 for acc in test_accuracies[-3:] if acc <= max(test_accuracies[:-1] or [0]))
+            if stagnation >= 3:
+                print("No improvement on test set for 3 epochs, stopping early.")
+                break
 
         print(f"\rTime taken: {time_taken} seconds")
         print("Loss:", loss.item())

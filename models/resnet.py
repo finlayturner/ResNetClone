@@ -10,7 +10,7 @@ class ResNet(nn.Module):
 
         self.in_channels = 64
 
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=1, padding=3, bias=False)
 
         self.bn1 = nn.BatchNorm2d(64)
 
@@ -27,6 +27,8 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
 
         self.avgpool = nn.AdaptiveAvgPool2d((1,1))
+        # regularisation
+        self.dropout = nn.Dropout(p=0.5)
 
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
@@ -58,6 +60,7 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
 
         x = torch.flatten(x, 1)
+        x = self.dropout(x)  # drop some features during training
 
         x = self.fc(x)
 
